@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 238 48" role="img" aria-label="EyeAssist">
+  <g fill="none" fill-rule="evenodd">
+    <rect width="48" height="48" rx="10" fill="#1f6f8b"/>
+    <path d="M8 24c4.8-7.8 10.1-11.7 16-11.7S35.2 16.2 40 24c-4.8 7.8-10.1 11.7-16 11.7S12.8 31.8 8 24Z" fill="#fff"/>
+    <circle cx="24" cy="24" r="7.2" fill="#d9eef6"/>
+    <circle cx="24" cy="24" r="3.8" fill="#145578"/>
+    <text x="62" y="31" fill="#172033" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">EyeAssist</text>
+  </g>
+</svg>

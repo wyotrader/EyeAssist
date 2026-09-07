@@ -1,0 +1,138 @@
+# EyeAssist Tool Registry v1.0
+# Defines available vision models and knowledge sources for the agent orchestrator.
+# Tools marked as 'active: false' are staged for future deployment (awaiting GPU).
+
+metadata:
+  version: "1.0"
+  updated: "2026-03-14"
+  platform: "eyeassist-dev (VM - CPU only)"
+
+# === RAG Knowledge Sources ===
+knowledge_sources:
+  - name: posterior_segment_rag
+    description: "Retrieve evidence from posterior segment references: AAO PPPs for DR, AMD, glaucoma; BCSC retina and glaucoma volumes; Wills Eye Manual retina chapters."
+    collection: posterior_segment
+    type: rag
+    active: true
+
+  - name: anterior_segment_rag
+    description: "Retrieve evidence from anterior segment and OSD references: TFOS DEWS II reports, AAO PPPs for dry eye and corneal conditions, meibomian gland grading standards."
+    collection: anterior_segment
+    type: rag
+    active: true
+
+  - name: general_ophthalmology_rag
+    description: "Retrieve from general ophthalmology references: drug formularies, ICD-10 codes, CPT guidance, general clinical references."
+    collection: general_ophthalmology
+    type: rag
+    active: true
+
+# === Posterior Segment Vision Models ===
+posterior_models:
+  - name: retfound
+    description: "General retinal disease screening and feature extraction from color fundus photographs or OCT images. Use as a first-pass screening tool."
+    modalities: [cfp, oct]
+    input_format: "PNG/JPEG image, 224x224 or 512x512"
+    output_format: "Disease probability scores, feature embeddings"
+    model_path: "~/eyeassist/models/retfound/"
+    source: "Moorfields/UCL - GitHub"
+    active: false  # Awaiting GPU
+
+  - name: harvard_gdp_glaucoma
+    description: "Glaucoma detection and progression forecasting from OCT RNFL thickness maps. Provides glaucoma probability and 6-method progression labels."
+    modalities: [oct_rnflt]
+    input_format: "225x225 RNFLT map (numpy array)"
+    output_format: "Glaucoma probability, progression risk scores"
+    model_path: "~/eyeassist/models/harvard-gdp/"
+    source: "Harvard Ophthalmology AI Lab - ICCV 2023"
+    active: false
+
+  - name: fairseg_disc_cup
+    description: "Optic disc and cup segmentation for cup-to-disc ratio calculation. Fairness-aware model with equitable performance across demographics."
+    modalities: [cfp]
+    input_format: "Fundus photo, 512x512 PNG"
+    output_format: "Segmentation mask, CDR value, confidence"
+    model_path: "~/eyeassist/models/fairseg/"
+    source: "Harvard Ophthalmology AI Lab - ICLR 2024"
+    active: false
+
+  - name: rnflt2vec
+    description: "Feature extraction from RNFL thickness maps with artifact correction. Produces clinically meaningful embeddings for downstream analysis."
+    modalities: [oct_rnflt]
+    input_format: "RNFLT map (numpy array)"
+    output_format: "Feature vector, artifact flags"
+    model_path: "~/eyeassist/models/rnflt2vec/"
+    source: "Harvard Ophthalmology AI Lab - MedIA 2024"
+    active: false
+
+  - name: vftransformer
+    description: "Predict 10-2 Humphrey visual field from 24-2 data. Useful when 10-2 testing was not performed."
+    modalities: [visual_field]
+    input_format: "52 total deviation values from 24-2 VF"
+    output_format: "Predicted 10-2 VF values"
+    model_path: "~/eyeassist/models/vftransformer/"
+    source: "Harvard Ophthalmology AI Lab - TVST 2024"
+    active: false
+
+  - name: dr_grading
+    description: "Diabetic retinopathy severity grading on the 5-level ICDR scale: none, mild NPDR, moderate NPDR, severe NPDR, PDR."
+    modalities: [cfp]
+    input_format: "Fundus photo, 512x512 PNG"
+    output_format: "ICDR grade, confidence per grade"
+    model_path: "~/eyeassist/models/dr-grading/"
+    source: "Community - multiple published models"
+    active: false
+
+  - name: vessel_segmentation
+    description: "Retinal artery/vein segmentation and measurement. Provides vessel maps, A/V ratio, tortuosity metrics."
+    modalities: [cfp]
+    input_format: "Fundus photo, 512x512 PNG"
+    output_format: "Segmentation mask, vessel metrics JSON"
+    model_path: "~/eyeassist/models/vessel-seg/"
+    source: "RRWNet - open source"
+    active: false
+
+# === Anterior Segment Vision Models ===
+anterior_models:
+  - name: mg_segmentation
+    description: "Meibomian gland segmentation from infrared meibography. Returns segmentation mask, gland count, dropout percentage, meiboscore, and morphology metrics (length, width, tortuosity, area)."
+    modalities: [meibography_ir]
+    input_format: "IR meibography image (Keratograph, LipiView, or similar)"
+    output_format: "Segmentation mask, meiboscore (0-4), dropout %, gland count, morphology metrics JSON"
+    model_path: "~/eyeassist/models/mg-segmentation/"
+    source: "AI_for_CAMG / MGD-1K dataset"
+    active: false
+
+  - name: corneal_disease
+    description: "Corneal disease classification from slit-lamp photographs. Detects infectious keratitis and differentiates bacterial vs. fungal keratitis and filamentous vs. yeast subtypes."
+    modalities: [slit_lamp]
+    input_format: "Slit-lamp photo, cropped to cornea ROI"
+    output_format: "Disease classification, BK/FK probability, confidence"
+    model_path: "~/eyeassist/models/corneal-disease/"
+    source: "keratitis-detection-slitlamp (GitHub)"
+    active: false
+
+  - name: keratoconus_screening
+    description: "Keratoconus detection and staging from Pentacam corneal topography data. Differentiates normal, subclinical KC, and KC."
+    modalities: [pentacam_topography]
+    input_format: "Pentacam CSV/XML export with corneal parameters"
+    output_format: "KC probability, staging, key discriminating features"
+    model_path: "~/eyeassist/models/keratoconus/"
+    source: "Research models - to be integrated"
+    active: false
+
+  - name: osd_integrator
+    description: "Multi-factor dry eye disease assessment. Synthesizes meibography analysis, TBUT, Schirmer, staining, OSDI, and lid margin findings into TFOS DEWS II classification with severity grading. This is an LLM-based tool, not a vision model."
+    modalities: [combined_osd_data]
+    input_format: "JSON with MG model outputs + clinical measurements (TBUT, Schirmer, staining_grade, OSDI_score, lid_margin_findings)"
+    output_format: "DED subtype (aqueous deficient/evaporative/mixed), severity grade, correlated findings summary"
+    model_path: null  # LLM-based, no separate model
+    source: "Custom EyeAssist build"
+    active: false
+
+# === Utility Tools ===
+utility_tools:
+  - name: image_quality_check
+    description: "Assess image quality and reject ungradable images. Checks brightness, contrast, focus, and artifacts."
+    modalities: [cfp, oct, slit_lamp, meibography_ir]
+    active: false

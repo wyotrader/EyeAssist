@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="EyeAssist">
+  <rect width="64" height="64" rx="14" fill="#1f6f8b"/>
+  <path d="M9 32c6-10 14-15 23-15s17 5 23 15c-6 10-14 15-23 15S15 42 9 32Z" fill="#fff"/>
+  <circle cx="32" cy="32" r="9" fill="#d9eef6"/>
+  <circle cx="32" cy="32" r="5" fill="#145578"/>
+</svg>

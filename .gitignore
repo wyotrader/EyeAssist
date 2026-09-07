@@ -1,0 +1,57 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# Python and JavaScript environments
+venv/
+.venv/
+env/
+node_modules/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Runtime and clinical data
+data/erg/
+data/clinical/
+data/uploads/
+data/chromadb*/
+clinical-data/
+runtime-data/
+*.sqlite
+*.sqlite3
+*.db
+
+# Models and generated binary artifacts
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.gguf
+
+# Logs, caches, builds, and temporary files
+logs/
+*.log
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.svelte-kit/
+build/
+dist/
+coverage/
+*.tmp
+*.temp
+*.bak
+*.bak_*
+*~
+.DS_Store
+

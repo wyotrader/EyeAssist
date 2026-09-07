@@ -1,0 +1,30 @@
+[project]
+name = "eyeassist-gateway"
+version = "0.1.0"
+description = "EyeAssist FastAPI gateway and static frontend"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "fastapi==0.115.7",
+  "uvicorn[standard]==0.34.0",
+  "pydantic==2.10.6",
+  "SQLAlchemy==2.0.38",
+  "passlib[bcrypt]==1.7.4",
+  "bcrypt==4.3.0",
+  "PyJWT[crypto]==2.10.1",
+  "httpx==0.28.1"
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest~=8.3.2"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["eyeassist_gateway*"]

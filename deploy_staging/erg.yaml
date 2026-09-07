@@ -1,0 +1,45 @@
+# ERG Report Template
+# Declarative section layout for RETeval full-field ERG reports.
+# Consumed by reports.renderer.render() together with a ReportContext
+# produced by reports.integrators.erg.ERGIntegrator.
+
+modality: ERG
+title: ELECTRORETINOGRAPHY REPORT
+subtitle: RETeval™ Full-Field ERG
+
+# Clinical grounding — surfaced as provenance, not rendered directly
+normative_refs:
+  - LKC RETeval Reference Data 2023.23
+  - ISCEV Standard for full-field ERG (2022 update)
+
+rag_collections:
+  - retina    # clinical interpretation, ERG patterns, retinal dystrophies
+  - neuro     # cone/rod pathway physiology, neuro-ophthalmology context
+  - general   # ISCEV standards, general electrophysiology references
+
+sections:
+  - type: kv_table
+    header: PATIENT & TEST INFORMATION
+    source: patient
+
+  - type: kv_table
+    header: DEVICE & PROTOCOL
+    source: device
+
+  - type: results_table
+    header: ERG RESULTS
+    source: findings
+    col_widths: [0.36, 0.18, 0.13, 0.18, 0.13]
+
+  - type: interpretation
+    header: INTERPRETATION
+    source: interpretation
+
+  - type: assessment_plan
+    header: REPORT / ASSESSMENT & PLAN
+    source: assessment_plan
+
+  - type: kv_table
+    header: PROVIDER ATTESTATION
+    source: attestation
+    col_ratio: [0.32, 0.68]

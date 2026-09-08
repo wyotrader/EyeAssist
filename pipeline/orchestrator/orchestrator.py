@@ -31,6 +31,7 @@ from typing import Optional
 from contextlib import asynccontextmanager
 
 import requests
+import httpx
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from fastapi import UploadFile, File
 from fastapi.responses import Response
@@ -43,6 +44,8 @@ from pydantic import BaseModel, Field
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3:32b-a3b")
+OLLAMA_KEEP_ALIVE = os.environ.get("OLLAMA_KEEP_ALIVE", "10m")
+OLLAMA_SYNTHESIS_NUM_PREDICT = int(os.environ.get("OLLAMA_SYNTHESIS_NUM_PREDICT", "1024"))
 RAG_SERVICE_URL = os.environ.get("RAG_SERVICE_URL", "http://localhost:8100")
 VISION_SERVICE_URL = os.environ.get("VISION_SERVICE_URL", "http://localhost:8200")
 SERVICE_PORT = 8300
@@ -178,6 +181,7 @@ def call_llm(prompt: str, system_prompt: str = "", temperature: float = 0.3) -> 
                 "messages": messages,
                 "stream": False,
                 "options": {"temperature": temperature, "num_predict": 2048},
+                "keep_alive": OLLAMA_KEEP_ALIVE,
             },
             timeout=900,  # 5 min timeout for CPU inference
         )
@@ -843,7 +847,7 @@ from typing import AsyncGenerator
 import asyncio
 
 
-def call_llm_stream(prompt: str, system_prompt: str = "", temperature: float = 0.3):
+async def call_llm_stream(prompt: str, system_prompt: str = "", temperature: float = 0.3):
     """
     Call Ollama LLM with streaming enabled. Yields content chunks.
     This is a generator that yields string chunks as they arrive.
@@ -854,36 +858,40 @@ def call_llm_stream(prompt: str, system_prompt: str = "", temperature: float = 0
     messages.append({"role": "user", "content": prompt})
 
     try:
-        resp = requests.post(
-            f"{OLLAMA_URL}/api/chat",
-            json={
-                "model": OLLAMA_MODEL,
-                "messages": messages,
-                "stream": True,
-                "options": {"temperature": temperature, "num_predict": 4096},
-            },
-            timeout=900,
-            stream=True,
-        )
-        resp.raise_for_status()
+        async with httpx.AsyncClient(timeout=None) as client:
+            async with client.stream(
+                "POST",
+                f"{OLLAMA_URL}/api/chat",
+                json={
+                    "model": OLLAMA_MODEL,
+                    "messages": messages,
+                    "stream": True,
+                    "options": {
+                        "temperature": temperature,
+                        "num_predict": OLLAMA_SYNTHESIS_NUM_PREDICT,
+                    },
+                    "keep_alive": OLLAMA_KEEP_ALIVE,
+                },
+            ) as resp:
+                resp.raise_for_status()
 
-        for line in resp.iter_lines():
-            if line:
-                try:
-                    chunk = json.loads(line)
-                    content = chunk.get("message", {}).get("content", "")
-                    if content:
-                        yield content
-                    if chunk.get("done", False):
-                        break
-                except json.JSONDecodeError:
-                    continue
+                async for line in resp.aiter_lines():
+                    if line:
+                        try:
+                            chunk = json.loads(line)
+                            content = chunk.get("message", {}).get("content", "")
+                            if content:
+                                yield content
+                            if chunk.get("done", False):
+                                break
+                        except json.JSONDecodeError:
+                            continue
     except Exception as e:
         logging.error(f"LLM streaming call failed: {e}")
         yield f"[LLM Error: {str(e)}]"
 
 
-def synthesize_response_stream(query: str, tool_results: list[ToolResult]):
+async def synthesize_response_stream(query: str, tool_results: list[ToolResult]):
     """
     Stream the synthesis response token by token.
     Yields string chunks as they arrive from the LLM.
@@ -914,7 +922,7 @@ Tool results:
 
 Synthesize these results into a clinical response following the EyeAssist output format."""
 
-    for chunk in call_llm_stream(prompt, SYNTHESIS_SYSTEM_PROMPT, temperature=0.3):
+    async for chunk in call_llm_stream(prompt, SYNTHESIS_SYSTEM_PROMPT, temperature=0.3):
         yield chunk
 
 
@@ -1006,7 +1014,7 @@ async def orchestrate_stream(query: OrchestrateStreamRequest, request: Request):
 
         logging.info(f"[{session_id}] Phase 3: Streaming synthesis...")
         
-        for chunk in synthesize_response_stream(query.message, tool_results):
+        async for chunk in synthesize_response_stream(query.message, tool_results):
             if await request.is_disconnected():
                 break
             token_event = {"type": "token", "content": chunk}

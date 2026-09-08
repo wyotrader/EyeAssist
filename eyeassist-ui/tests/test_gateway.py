@@ -61,15 +61,6 @@ def test_health_admin_boundary(tmp_path, monkeypatch):
     assert clinician.get("/api/eyeassist/health").status_code == 403
 
 
-def test_reasoning_strip():
-    from eyeassist_gateway.app import ReasoningFilter, strip_reasoning
-
-    assert strip_reasoning("visible <think>hidden</think> text") == "visible  text"
-    leak_filter = ReasoningFilter()
-    chunks = ["visible ", "<thi", "nk>hidden", "</think> text"]
-    assert "".join(leak_filter.feed(chunk) for chunk in chunks) + leak_filter.flush() == "visible  text"
-
-
 def test_gateway_normalized_sse_events(tmp_path, monkeypatch):
     load_app(tmp_path, monkeypatch)
     import eyeassist_gateway.app as gateway
@@ -86,7 +77,7 @@ def test_gateway_normalized_sse_events(tmp_path, monkeypatch):
         async def aiter_lines(self):
             yield 'data: {"type":"metadata","evidence":[{"title":"AAO","page":12,"collection":"glaucoma","distance":0.2}]}'
             yield 'data: {"type":"token","content":"Assessment "}'
-            yield 'data: {"type":"token","content":"<think>hidden</think>visible"}'
+            yield 'data: {"type":"token","content":"visible"}'
             yield 'data: {"type":"done","total_time_ms":9}'
 
     class FakeClient:
@@ -115,5 +106,4 @@ def test_gateway_normalized_sse_events(tmp_path, monkeypatch):
         if part.startswith("data: ")
     ]
     assert "".join(event.get("text", "") for event in events if event["type"] == "delta") == "Assessment visible"
-    assert "hidden" not in text
     assert '"type":"done"' in text

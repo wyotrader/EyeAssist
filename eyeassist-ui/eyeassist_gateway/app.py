@@ -1,6 +1,5 @@
 import asyncio
 import json
-import re
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -23,49 +22,6 @@ class ConsultationRequest(BaseModel):
 
 def sse(event: dict) -> str:
     return f"data: {json.dumps(event, separators=(',', ':'))}\n\n"
-
-
-def strip_reasoning(text: str) -> str:
-    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE)
-
-
-class ReasoningFilter:
-    def __init__(self) -> None:
-        self._buffer = ""
-        self._inside = False
-
-    def feed(self, text: str) -> str:
-        self._buffer += text
-        output = []
-        while self._buffer:
-            if self._inside:
-                end = self._buffer.lower().find("</think>")
-                if end == -1:
-                    self._buffer = self._buffer[-7:]
-                    return "".join(output)
-                self._buffer = self._buffer[end + 8 :]
-                self._inside = False
-                continue
-
-            start = self._buffer.lower().find("<think>")
-            if start == -1:
-                keep = max(len(self._buffer) - 7, 0)
-                output.append(self._buffer[:keep])
-                self._buffer = self._buffer[keep:]
-                return "".join(output)
-
-            output.append(self._buffer[:start])
-            self._buffer = self._buffer[start + 7 :]
-            self._inside = True
-        return "".join(output)
-
-    def flush(self) -> str:
-        if self._inside:
-            self._buffer = ""
-            return ""
-        text = self._buffer
-        self._buffer = ""
-        return text
 
 
 def evidence_from_metadata(payload: dict) -> list[dict]:
@@ -114,7 +70,6 @@ async def consultation_stream(body: ConsultationRequest, request: Request, user:
     started = time.perf_counter()
 
     async def events() -> AsyncIterator[str]:
-        reasoning_filter = ReasoningFilter()
         yield sse({"type": "session", "consultationId": consultation_id})
         yield sse({"type": "status", "stage": "retrieval", "label": "Searching clinical evidence"})
 
@@ -135,13 +90,10 @@ async def consultation_stream(body: ConsultationRequest, request: Request, user:
                             yield sse({"type": "evidence", "items": evidence_from_metadata(payload)})
                             yield sse({"type": "status", "stage": "synthesis", "label": "Preparing clinical assessment"})
                         elif kind == "token":
-                            text = reasoning_filter.feed(payload.get("content", ""))
+                            text = payload.get("content", "")
                             if text:
                                 yield sse({"type": "delta", "text": text})
                         elif kind == "done":
-                            text = reasoning_filter.flush()
-                            if text:
-                                yield sse({"type": "delta", "text": text})
                             elapsed = round((time.perf_counter() - started) * 1000)
                             yield sse({"type": "done", "elapsedMs": elapsed})
         except asyncio.CancelledError:
@@ -166,11 +118,13 @@ async def health(user: UserSession = Depends(require_admin)):
 
 if STATIC_DIR.exists():
     app.mount("/_app", StaticFiles(directory=STATIC_DIR / "_app"), name="app-assets")
-    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
 
 @app.get("/{path:path}", include_in_schema=False)
 async def spa(path: str):
+    static_file = STATIC_DIR / path
+    if path and static_file.is_file():
+        return FileResponse(static_file)
     index = STATIC_DIR / "index.html"
     if index.exists():
         return FileResponse(index)
